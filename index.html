@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ניהול יחידת יהל"ם (ללא React)</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#64748b;
+      --brand:#0f172a; --blue:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#d97706;
+      --border:#e2e8f0; --shadow:0 8px 24px rgba(2,6,23,.08);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    a{color:inherit}
+    .container{max-width:1100px;margin:0 auto;padding:18px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 0 rgba(2,6,23,.02)}
+    .btn{border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .btn.dark{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
+    .btn.red{background:var(--red);border-color:var(--red);color:#fff}
+    .btn.ghost{background:#fff}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .col{flex:1}
+    .muted{color:var(--muted)}
+    .h1{font-size:20px;font-weight:900;margin:0}
+    .h2{font-size:16px;font-weight:900;margin:0}
+    .tag{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid var(--border);background:#fff}
+    .tag.green{background:#dcfce7;border-color:#bbf7d0;color:#166534}
+    .tag.red{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+    .tag.amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+    .navTop{
+      position:sticky;top:0;z-index:50;background:var(--brand);color:#fff;
+      padding-top:env(safe-area-inset-top); box-shadow:var(--shadow)
+    }
+    .navInner{max-width:1100px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .logo{width:44px;height:44px;border-radius:14px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:900}
+    .navLinks{display:flex;gap:6px;flex-wrap:wrap}
+    .navLinks button{background:transparent;border:0;color:#cbd5e1;font-weight:900;padding:10px 10px;border-radius:10px;cursor:pointer}
+    .navLinks button.active{background:rgba(255,255,255,.12);color:#fff}
+    .navLinks button:hover{color:#fff}
+    .mobileBar{
+      position:fixed;left:0;right:0;bottom:0;z-index:60;
+      padding-bottom:env(safe-area-inset-bottom);
+      background:#fff;border-top:1px solid var(--border);
+      display:none
+    }
+    .mobileBar .wrap{max-width:1100px;margin:0 auto;display:flex}
+    .mobileBar button{
+      flex:1;border:0;background:transparent;padding:12px 6px;font-weight:900;color:var(--muted);cursor:pointer
+    }
+    .mobileBar button.active{color:var(--blue)}
+    @media(max-width:820px){
+      .navLinks{display:none}
+      .mobileBar{display:block}
+      .container{padding-bottom:92px}
+    }
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:900px){ .grid.cols2{grid-template-columns:1fr 1fr} .grid.cols3{grid-template-columns:1fr 1fr 1fr} }
+    .list{margin:0;padding:0;list-style:none}
+    .item{padding:14px;border-top:1px solid var(--border)}
+    .item:first-child{border-top:0}
+    .itemHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .title{font-weight:900}
+    .small{font-size:12px}
+    .modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:80;display:none;align-items:center;justify-content:center;padding:18px}
+    .modal{width:min(720px,100%);max-height:85vh;overflow:auto;background:#fff;border-radius:18px;border:1px solid var(--border);box-shadow:var(--shadow)}
+    .modalHeader{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .modalBody{padding:16px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    input,select,textarea{
+      padding:10px 12px;border-radius:12px;border:1px solid var(--border);font:inherit;background:#fff
+    }
+    textarea{min-height:96px}
+    .kpi{padding:14px;border-radius:16px;border:1px solid var(--border);background:#fff}
+    .kpi .num{font-size:28px;font-weight:1000}
+    .banner{padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:#fff}
+    .banner.amber{background:#fffbeb;border-color:#fde68a}
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <div id="modal-backdrop" class="modalBackdrop">
+    <div id="modal" class="modal" role="dialog" aria-modal="true">
+      <div class="modalHeader">
+        <div id="modal-title" class="h2">חלון</div>
+        <button class="btn" id="modal-close">סגור</button>
+      </div>
+      <div id="modal-body" class="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const todayISO = () => new Date().toISOString().slice(0,10);
+    const nowTime = () => new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    const uid = () => Date.now() + Math.floor(Math.random()*1000000);
+
+    const BATTALIONS = ["ס'3","ס'4","ס'5"];
+    const STANDARD_PLATOONS = ['א','ב','ג','מפקדה','מסייעת'];
+    const TEAMS = ['צוות 1','צוות 2','צוות 3','חפ"ק','רכב','לוגיסטיקה','שלישות'];
+
+    function generateSoldiers(){
+      return [
+        { id:'8549123', name:'ישראל ישראלי', rank:'סמ"ר', role:'לוחם חוד',
+          battalion:"ס'3", platoon:'א', team:'צוות 1', tzavStatus:'active', status:'present', phone:'050-1234567', dietary:'רגיל', daysActive:45 },
+        { id:'9988776', name:'דני דין', rank:'רב"ט', role:'נהג',
+          battalion:"ס'4", platoon:'מפקדה', team:'רכב', tzavStatus:'active', status:'present', phone:'050-1112222', dietary:'טבעוני', daysActive:20 }
+      ];
+    }
+
+    const INITIAL = {
+      soldiers: generateSoldiers(),
+      schedule: [
+        { id:1, type:'event', date:todayISO(), time:'08:00', title:'מסדר בוקר', description:'רחבת מסדרים גדודית', location:'',
+          scope:'battalion', targetScope:'battalion', targetBattalion:"ס'3",
+          createdBy:'מערכת', createdTime:'08:00', createdAt:new Date().toISOString(),
+          status:'active', requireAck:false, ackBy:[] },
+        { id:2, type:'task', date:todayISO(), time:'10:00', title:'טיפול שבועי', description:'לכל הכלים', scope:'personal',
+          targetScope:'user', targetUserId:'8549123', assignedTo:'8549123', completed:false,
+          createdBy:'מערכת', createdTime:'08:10', createdAt:new Date().toISOString(), status:'active' },
+      ],
+      materials: [
+        { id:101, title:'הוראות בטיחות חורף', description:'PDF דוגמה', uploadDate:'2025-01-05', uploadTime:'08:00',
+          uploadedBy:'מערכת', fileName:'winter.pdf', mime:'application/pdf', url:'', readBy:['8549123'] }
+      ],
+      notifications: [],
+      auth: { view:'login', user:null },
+      ui: { tab: 'my_status' }
+    };
+
+    const STORAGE_KEY = 'yahalom_vanilla_v1';
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return structuredClone(INITIAL);
+        const parsed = JSON.parse(raw);
+        parsed.soldiers ||= generateSoldiers();
+        parsed.schedule ||= [];
+        parsed.materials ||= [];
+        parsed.notifications ||= [];
+        parsed.auth ||= {view:'login', user:null};
+        parsed.ui ||= {tab:'my_status'};
+        return parsed;
+      }catch(e){
+        console.warn('loadState failed', e);
+        return structuredClone(INITIAL);
+      }
+    }
+    let state = loadState();
+    function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+    function isAdmin(user){ return user?.role?.includes('admin') && user.role !== 'soldier'; }
+    function canAdminAccessSoldier(adminUser, soldier){
+      if(!adminUser || !soldier) return false;
+      if(!adminUser.role?.includes('admin')) return false;
+      if(adminUser.battalion === 'הכל') return true;
+      if(adminUser.battalion && soldier.battalion !== adminUser.battalion) return false;
+      if(adminUser.platoon && adminUser.platoon !== 'הכל' && adminUser.platoon !== 'מפקדה'){
+        if(soldier.platoon !== adminUser.platoon) return false;
+      }
+      return true;
+    }
+    function currentSoldierRecord(){
+      const u = state.auth.user;
+      if(!u) return null;
+      if(u.role === 'soldier'){
+        return state.soldiers.find(s => s.id === u.personalId) || null;
+      }
+      return null;
+    }
+
+    const backdrop = document.getElementById('modal-backdrop');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+    function openModal(title, html){
+      modalTitle.textContent = title;
+      modalBody.innerHTML = html;
+      backdrop.style.display = 'flex';
+    }
+    function closeModal(){
+      backdrop.style.display = 'none';
+      modalBody.innerHTML = '';
+    }
+
+    function matchTarget(item, soldier){
+      const scope = item.targetScope || item.scope;
+      if(scope === 'all') return true;
+      if(scope === 'battalion'){
+        return soldier && (item.targetBattalion ? soldier.battalion === item.targetBattalion : true);
+      }
+      if(scope === 'platoon'){
+        return soldier && soldier.battalion === (item.targetBattalion || soldier.battalion) && soldier.platoon === item.targetPlatoon;
+      }
+      if(scope === 'team'){
+        return soldier && soldier.battalion === (item.targetBattalion || soldier.battalion) && soldier.platoon === (item.targetPlatoon || soldier.platoon) && soldier.team === item.targetTeam;
+      }
+      if(scope === 'user' || scope === 'personal'){
+        const uid = item.targetUserId || item.assignedTo;
+        return soldier && uid && soldier.id === uid;
+      }
+      return true;
+    }
+
+    function visibleScheduleForUser(user){
+      const me = currentSoldierRecord();
+      if(isAdmin(user)) return state.schedule;
+      if(!me) return [];
+      return state.schedule.filter(it => {
+        if(it.status && it.status !== 'active') return false;
+        if(it.type === 'task' && it.assignedTo) return it.assignedTo === me.id;
+        return matchTarget(it, me);
+      }).sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||''));
+    }
+
+    const app = document.getElementById('app');
+
+    function setTab(tab){ state.ui ||= {}; state.ui.tab = tab; saveState(); render(); }
+    function logout(){ state.auth = {view:'login', user:null}; saveState(); render(); }
+
+    function loginAs(role){
+      if(role === 'admin') state.auth.user = {name:'מנהל יחידתי', role:'admin_battalion', battalion:'הכל', platoon:'מפקדה', id:'admin1'};
+      if(role === 'shalish') state.auth.user = {name:'שליש גדודי', role:'admin_hr', battalion:"ס'3", platoon:'מפקדה', id:'hr1'};
+      if(role === 'logistics') state.auth.user = {name:'קצין לוגיסטיקה', role:'admin_logistics', battalion:'הכל', platoon:'מפקדה', id:'log1'};
+      if(role === 'soldier') state.auth.user = {name:'ישראל ישראלי', role:'soldier', battalion:"ס'3", platoon:'א', team:'צוות 1', personalId:'8549123'};
+      state.auth.view = 'app';
+      state.ui ||= {};
+      state.ui.tab = (role==='soldier') ? 'my_status' : 'dashboard';
+      saveState();
+      render();
+    }
+
+    function TopNav(user){
+      const isSoldier = user?.role === 'soldier';
+      const admin = isAdmin(user);
+      const tab = state.ui?.tab || (isSoldier ? 'my_status' : 'dashboard');
+
+      const links = [];
+      if(admin) links.push(['dashboard','תמונת מצב']);
+      if(isSoldier) links.push(['my_status','הסטטוס שלי']);
+      links.push(['competencies','כשירויות']);
+      links.push(['study','למידה']);
+      links.push(['schedule','לו"ז']);
+      if(isSoldier) links.push(['chat',"צ'אט"]);
+      if(isSoldier) links.push(['3010','3010']);
+      if(admin) links.push(['admin_schedule','לו"ז אדמינים']);
+
+      return `
+        <div class="navTop">
+          <div class="navInner">
+            <div style="display:flex;gap:12px;align-items:center">
+              <div class="logo">יה</div>
+              <div>
+                <div style="font-weight:1000;font-size:18px;line-height:1">ניהול יחידת יהל"ם</div>
+                <div style="font-size:12px;color:#94a3b8;margin-top:4px">שלום, ${user.name}</div>
+              </div>
+            </div>
+
+            <div class="navLinks">
+              ${links.map(([k,label])=>`<button data-tab="${k}" class="${k===tab?'active':''}">${label}</button>`).join('')}
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center">
+              <button class="btn ghost" id="logout-btn">יציאה</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mobileBar">
+          <div class="wrap">
+            ${links.slice(0,5).map(([k,label])=>`<button data-tab="${k}" class="${k===tab?'active':''}">${label}</button>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function LoginScreen(){
+      return `
+        <div class="container" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+          <div class="card" style="padding:18px;width:min(520px,100%);text-align:center">
+            <div class="h1" style="margin-bottom:10px">כניסה למערכת (גרסת iOS ללא React)</div>
+            <div class="muted small" style="margin-bottom:14px">בחר תפקיד דמו</div>
+            <div class="grid cols2" style="grid-template-columns:1fr 1fr">
+              <button class="btn" data-login="shalish">שליש</button>
+              <button class="btn" data-login="logistics">לוגיסטיקה</button>
+              <button class="btn" data-login="admin">אדמין</button>
+              <button class="btn" data-login="soldier">חייל</button>
+            </div>
+            <div class="muted small" style="margin-top:14px">* בפריסה לשרת נוסיף Google Auth ואישור אדמין ⭐</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function DashboardAdmin(){
+      const soldiers = state.soldiers;
+      const active = soldiers.filter(s=>s.tzavStatus==='active').length;
+      const total = soldiers.length;
+      const pct = total? Math.round(active/total*100) : 0;
+
+      return `
+        <div class="container">
+          <div class="grid cols3">
+            <div class="kpi card"><div class="muted small">כוח אדם פעיל</div><div class="num">${active}</div></div>
+            <div class="kpi card"><div class="muted small">סה״כ</div><div class="num">${total}</div></div>
+            <div class="kpi card"><div class="muted small">נוכחות</div><div class="num">${pct}%</div></div>
+          </div>
+          <div class="card" style="margin-top:12px;padding:16px">
+            <div class="h2">מה חדש</div>
+            <div class="muted small" style="margin-top:6px">זוהי גרסת Vanilla (ללא React) שתעבוד בספארי iOS. ממשיכים להוסיף יכולות על השרת ⭐</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function MyStatusSoldier(){
+      const me = currentSoldierRecord();
+      if(!me) return `<div class="container"><div class="card" style="padding:16px">טוען נתונים…</div></div>`;
+      const schedule = visibleScheduleForUser(state.auth.user).slice(0,20);
+      const upcoming = schedule.filter(x=>x.type!=='task' || !x.completed);
+
+      return `
+        <div class="container">
+          <div class="card" style="padding:16px;margin-bottom:12px">
+            <div class="row" style="align-items:center;justify-content:space-between">
+              <div>
+                <div class="h1">שלום, ${me.name}</div>
+                <div class="muted small">${me.battalion}/${me.platoon} • ${me.team}</div>
+              </div>
+              <div><span class="tag ${me.tzavStatus==='active'?'green':'red'}">${me.tzavStatus==='active'?'פעיל בצו':'לא מגויס'}</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <div class="h2">לו״ז ומשימות</div>
+              <button class="btn" data-tabgo="schedule">פתח הכל</button>
+            </div>
+            <ul class="list">
+              ${upcoming.length? upcoming.map(it=>ScheduleRow(it,true)).join('') : `<li class="item muted">אין פריטים</li>`}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+
+    function ScheduleRow(it, compact=false){
+      const badge = it.type === 'task'
+        ? (it.completed ? `<span class="tag green">בוצע</span>` : `<span class="tag">משימה</span>`)
+        : `<span class="tag">אירוע</span>`;
+      const newVer = it.replacesId ? `<span class="tag amber">גרסה חדשה</span>` : '';
+      const when = `${it.date || ''} ${it.time || ''}${it.endTime ? `–${it.endTime}`:''}${it.endDate ? ` (עד ${it.endDate})`:''}`;
+      return `
+        <li class="item">
+          <div class="itemHead">
+            <div style="min-width:0">
+              <div class="title">${it.title}</div>
+              <div class="muted small">${when}${it.location?` • ${it.location}`:''}</div>
+              ${!compact && it.description ? `<div class="small" style="margin-top:6px">${escapeHtml(it.description)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              ${newVer}
+              ${badge}
+              <button class="btn" data-open-schedule="${it.id}">פרטים</button>
+              ${it.type==='task' && !it.completed ? `<button class="btn green" data-complete-task="${it.id}">בוצע</button>`:''}
+            </div>
+          </div>
+        </li>
+      `;
+    }
+
+    function ScheduleScreen(){
+      const user = state.auth.user;
+      const list = visibleScheduleForUser(user);
+
+      return `
+        <div class="container">
+          <div class="card">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <div class="h2">לו״ז ומשימות</div>
+              ${isAdmin(user) ? `<button class="btn dark" data-tabgo="admin_schedule">עריכת לו״ז (אדמין)</button>` : ``}
+            </div>
+            <ul class="list">
+              ${list.length? list.map(it=>ScheduleRow(it,false)).join('') : `<li class="item muted">אין פריטים</li>`}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMaterialPreview(mat){
+      if(!mat.url){
+        return `<div class="banner"><div class="muted small">אין תצוגה (דמו). בפריסה לשרת נטען קבצים ל-Storage ⭐</div></div>`;
+      }
+      const name = (mat.fileName||'').toLowerCase();
+      const mime = (mat.mime||'').toLowerCase();
+      const isImg = mime.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(name);
+      const isVid = mime.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(name);
+      const isPdf = mime.includes('pdf') || name.endsWith('.pdf');
+
+      if(isImg) return `<img src="${mat.url}" alt="${escapeHtml(mat.title)}" style="width:100%;max-height:360px;object-fit:contain;border:1px solid var(--border);border-radius:12px;background:#f1f5f9">`;
+      if(isVid) return `<video controls style="width:100%;border:1px solid var(--border);border-radius:12px;background:#000"><source src="${mat.url}" type="${mat.mime||'video/mp4'}"></video>`;
+      if(isPdf) return `<iframe src="${mat.url}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:12px;background:#fff" title="${escapeHtml(mat.title)}"></iframe>`;
+      return `<a class="btn" href="${mat.url}" download="${escapeHtml(mat.fileName||'file')}">הורד קובץ</a>`;
+    }
+
+    function StudyScreen(){
+      const user = state.auth.user;
+      const admin = isAdmin(user);
+      const me = currentSoldierRecord();
+      const myId = me?.id || user?.id || user?.personalId;
+
+      return `
+        <div class="container">
+          <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <div>
+              <div class="h2">חומרי לימוד</div>
+              <div class="muted small">PDF / Word / וידאו / תמונות + “קראתי”</div>
+            </div>
+            ${admin ? `<button class="btn primary" data-open-add-material="1">הוסף חומר לימוד</button>`:''}
+          </div>
+
+          <div style="height:12px"></div>
+
+          ${state.materials.map(mat=>{
+            const read = myId ? (mat.readBy||[]).includes(myId) : false;
+            return `
+              <div class="card" style="margin-bottom:12px">
+                <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                  <div style="min-width:0">
+                    <div class="title">${mat.title}</div>
+                    ${mat.description?`<div class="small muted" style="margin-top:4px">${escapeHtml(mat.description)}</div>`:''}
+                    <div class="small muted" style="margin-top:8px">הועלה: ${mat.uploadDate} ${mat.uploadTime} • ע״י: ${mat.uploadedBy||'-'} • קובץ: ${mat.fileName||'-'}</div>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    ${!read ? `<button class="btn green" data-mark-read="${mat.id}">קראתי</button>` : `<span class="tag green">נקרא</span>`}
+                    ${admin ? `<button class="btn dark" data-open-read-status="${mat.id}">סטטוס קריאה</button>`:''}
+                  </div>
+                </div>
+                <div style="padding:0 16px 16px">${renderMaterialPreview(mat)}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function openAddMaterial(){
+      const user = state.auth.user;
+      if(!isAdmin(user)) return;
+
+      openModal('הוספת חומר לימוד', `
+        <form id="add-material-form" class="grid" style="gap:12px">
+          <div class="field">
+            <label class="small muted">שם</label>
+            <input name="title" required placeholder="שם מערך/חומר לימוד" />
+          </div>
+          <div class="field">
+            <label class="small muted">תיאור (אופציונלי)</label>
+            <textarea name="description" placeholder="תיאור קצר"></textarea>
+          </div>
+          <div class="field">
+            <label class="small muted">קובץ</label>
+            <input name="file" type="file" required accept=".pdf,.doc,.docx,.mp4,.mov,.webm,.png,.jpg,.jpeg,.gif,.webp" />
+            <div class="small muted">* פתיחה כ-file:// באייפון עלולה לחסום תצוגה. ב-GitHub Pages זה יעבוד.</div>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <button type="button" class="btn" id="cancel-add">ביטול</button>
+            <button class="btn primary" type="submit">הוסף</button>
+          </div>
+        </form>
+        <div class="small muted" style="margin-top:10px">* בפריסה לשרת נחליף ל-Storage וקישורים קבועים ⭐</div>
+      `);
+
+      document.getElementById('cancel-add').addEventListener('click', closeModal);
+      document.getElementById('add-material-form').addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const title = String(fd.get('title')||'').trim();
+        const desc = String(fd.get('description')||'').trim();
+        const file = e.target.file.files?.[0];
+        if(!title) return alert('נא למלא שם');
+        if(!file) return alert('נא לבחור קובץ');
+
+        const matId = uid();
+        const mat = {
+          id: matId, title, description: desc,
+          uploadDate: todayISO(), uploadTime: nowTime(), uploadedBy: user.name,
+          fileName: file.name, mime: file.type || '', url: '', readBy: []
+        };
+        try { mat.url = URL.createObjectURL(file); } catch(_) { mat.url = ''; }
+
+        state.materials.unshift(mat);
+
+        const targets = state.soldiers.filter(s=>s.tzavStatus==='active' && canAdminAccessSoldier(user, s));
+        const tasks = targets.map(s=>({
+          id: uid(),
+          type:'task',
+          date: todayISO(),
+          time: nowTime(),
+          title: `לעבור מערך שיעור: ${title}`,
+          description: `חומר לימוד חדש הועלה. יש לעבור על המערך ולסמן "קראתי".`,
+          scope:'personal',
+          targetScope:'user',
+          targetUserId: s.id,
+          assignedTo: s.id,
+          completed:false,
+          materialId: matId,
+          createdBy: user.name,
+          createdTime: mat.uploadTime,
+          createdAt: new Date().toISOString(),
+          status:'active'
+        }));
+        state.schedule = [...tasks, ...state.schedule];
+
+        saveState();
+        closeModal();
+        render();
+      });
+    }
+
+    function openReadStatus(materialId){
+      const user = state.auth.user;
+      if(!isAdmin(user)) return;
+
+      const mat = state.materials.find(m=>m.id==materialId);
+      if(!mat) return;
+
+      const list = state.soldiers
+        .filter(s=>s.tzavStatus==='active' && canAdminAccessSoldier(user,s))
+        .map(s=>{
+          const read = (mat.readBy||[]).includes(s.id);
+          return `
+            <div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div><div class="title" style="font-size:14px">${s.name} <span class="muted small">• ${s.battalion}/${s.platoon} • ${s.id}</span></div></div>
+              <span class="tag ${read?'green':'red'}">${read?'קרא':'לא קרא'}</span>
+            </div>
+          `;
+        }).join('');
+
+      openModal(`סטטוס קריאה: ${mat.title}`, `<div style="max-height:60vh;overflow:auto;padding-right:2px">${list || `<div class="muted">אין נתונים</div>`}</div>`);
+    }
+
+    function markMaterialRead(materialId){
+      const me = currentSoldierRecord();
+      const myId = me?.id;
+      if(!myId) return alert('לא זוהה חייל');
+
+      const mat = state.materials.find(m=>m.id==materialId);
+      if(!mat) return;
+
+      mat.readBy ||= [];
+      if(!mat.readBy.includes(myId)) mat.readBy.push(myId);
+
+      state.schedule = state.schedule.map(it=>{
+        if(it.type==='task' && it.materialId==materialId && it.assignedTo===myId){
+          return {...it, completed:true, completedBy: state.auth.user.name};
+        }
+        return it;
+      });
+
+      saveState();
+      render();
+    }
+
+    function AdminScheduleScreen(){
+      const user = state.auth.user;
+      if(!isAdmin(user)) return `<div class="container"><div class="card" style="padding:16px">אין הרשאה</div></div>`;
+
+      return `
+        <div class="container">
+          <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+              <div class="h2">לו״ז אדמינים</div>
+              <div class="muted small">הוספה/עריכה לפי היררכיה (אירועי רוחב נשמרים)</div>
+            </div>
+            <div class="row">
+              <button class="btn primary" data-open-add-event="1">הוסף אירוע</button>
+              <button class="btn" data-tabgo="schedule">צפייה כחייל</button>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="card">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border)" class="h2">כל האירועים/משימות</div>
+            <ul class="list">
+              ${state.schedule
+                .filter(it=>it.status!=='archived')
+                .sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||''))
+                .map(it=>AdminScheduleRow(it)).join('') || `<li class="item muted">אין פריטים</li>`}
+            </ul>
+          </div>
+          <div class="muted small" style="margin-top:10px">* Google Calendar סנכרון יתווסף בפריסה לשרת ⭐</div>
+        </div>
+      `;
+    }
+
+    function AdminScheduleRow(it){
+      const scope = it.targetScope || it.scope || '-';
+      const tgt = scope === 'all' ? 'כל הגדודים'
+        : scope === 'battalion' ? `גדוד ${it.targetBattalion||'-'}`
+        : scope === 'platoon' ? `פלוגה ${it.targetPlatoon||'-'} (${it.targetBattalion||''})`
+        : scope === 'team' ? `צוות ${it.targetTeam||'-'}`
+        : scope === 'user' ? `חייל ${it.targetUserId||it.assignedTo||'-'}`
+        : scope;
+
+      return `
+        <li class="item">
+          <div class="itemHead">
+            <div style="min-width:0">
+              <div class="title">${it.title} ${it.replacesId?`<span class="tag amber" style="margin-right:6px">גרסה חדשה</span>`:''}</div>
+              <div class="muted small">
+                ${it.type==='task'?'משימה':'אירוע'} • ${it.date||''} ${it.time||''}${it.endTime?`–${it.endTime}`:''}${it.endDate?` (עד ${it.endDate})`:''}
+                • יעד: ${escapeHtml(tgt)}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn" data-open-schedule="${it.id}">פרטים</button>
+              <button class="btn" data-edit-event="${it.id}">ערוך</button>
+              <button class="btn red" data-cancel-event="${it.id}">בטל</button>
+            </div>
+          </div>
+        </li>
+      `;
+    }
+
+    function openAddOrEditEvent(existingId=null){
+      const user = state.auth.user;
+      if(!isAdmin(user)) return;
+
+      const existing = existingId ? state.schedule.find(x=>x.id==existingId) : null;
+      const isEdit = !!existing;
+
+      const defaults = existing ? {...existing} : {
+        id: null, type: 'event', title: '', description: '', location: '',
+        targetScope: 'battalion',
+        targetBattalion: user.battalion === 'הכל' ? "ס'3" : user.battalion,
+        targetPlatoon: 'א', targetTeam: 'צוות 1', targetUserId: '',
+        date: todayISO(), endDate: '', time: '08:00', endTime: '', requireAck: false
+      };
+
+      openModal(isEdit ? 'עריכת אירוע (גרסה חדשה)' : 'הוספת אירוע', `
+        <form id="event-form" class="grid" style="gap:12px">
+          <div class="field">
+            <label class="small muted">סוג</label>
+            <select name="type">
+              <option value="event" ${defaults.type==='event'?'selected':''}>אירוע</option>
+              <option value="task" ${defaults.type==='task'?'selected':''}>משימה</option>
+            </select>
+          </div>
+          <div class="field"><label class="small muted">כותרת</label><input name="title" required value="${escapeAttr(defaults.title)}" /></div>
+          <div class="field"><label class="small muted">תיאור</label><textarea name="description">${escapeHtml(defaults.description||'')}</textarea></div>
+
+          <div class="grid cols2" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label class="small muted">תאריך (התחלה)</label><input type="date" name="date" value="${escapeAttr(defaults.date)}" required /></div>
+            <div class="field"><label class="small muted">תאריך סיום (לאירוע ארוך)</label><input type="date" name="endDate" value="${escapeAttr(defaults.endDate||'')}" /></div>
+          </div>
+
+          <div class="grid cols2" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label class="small muted">שעה (התחלה)</label><input type="time" name="time" value="${escapeAttr(defaults.time||'')}" /></div>
+            <div class="field"><label class="small muted">שעה סיום</label><input type="time" name="endTime" value="${escapeAttr(defaults.endTime||'')}" /></div>
+          </div>
+
+          <div class="field"><label class="small muted">מיקום</label><input name="location" value="${escapeAttr(defaults.location||'')}" /></div>
+
+          <div class="field">
+            <label class="small muted">למי זה מיועד?</label>
+            <select name="targetScope">
+              <option value="all" ${defaults.targetScope==='all'?'selected':''}>אירוע רוחב (כל הגדודים)</option>
+              <option value="battalion" ${defaults.targetScope==='battalion'?'selected':''}>גדוד</option>
+              <option value="platoon" ${defaults.targetScope==='platoon'?'selected':''}>פלוגה</option>
+              <option value="team" ${defaults.targetScope==='team'?'selected':''}>צוות</option>
+              <option value="user" ${defaults.targetScope==='user'?'selected':''}>חייל ספציפי</option>
+            </select>
+          </div>
+
+          <div class="grid cols2" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+              <label class="small muted">גדוד</label>
+              <select name="targetBattalion">
+                ${BATTALIONS.map(b=>`<option value="${escapeAttr(b)}" ${(defaults.targetBattalion===b)?'selected':''}>${b}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label class="small muted">פלוגה</label>
+              <select name="targetPlatoon">
+                ${STANDARD_PLATOONS.map(p=>`<option value="${escapeAttr(p)}" ${(defaults.targetPlatoon===p)?'selected':''}>${p}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid cols2" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+              <label class="small muted">צוות</label>
+              <select name="targetTeam">
+                ${TEAMS.map(t=>`<option value="${escapeAttr(t)}" ${(defaults.targetTeam===t)?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field"><label class="small muted">חייל (מזהה)</label><input name="targetUserId" value="${escapeAttr(defaults.targetUserId||defaults.assignedTo||'')}" placeholder="למשל 8549123" /></div>
+          </div>
+
+          <div class="field">
+            <label class="small muted"><input type="checkbox" name="requireAck" ${defaults.requireAck?'checked':''} /> דורש אישור קריאה</label>
+          </div>
+
+          <div class="row" style="justify-content:space-between">
+            <button type="button" class="btn" id="cancel-event">ביטול</button>
+            <button class="btn primary" type="submit">${isEdit?'שמור כגרסה חדשה':'הוסף'}</button>
+          </div>
+          <div class="small muted">* באדמין עריכה נשמרת כגרסה חדשה (replacesId) כדי שיהיה “מה השתנה?”</div>
+        </form>
+      `);
+
+      document.getElementById('cancel-event').addEventListener('click', closeModal);
+      document.getElementById('event-form').addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+
+        const newItem = {
+          id: uid(),
+          type: data.type || 'event',
+          title: String(data.title||'').trim(),
+          description: String(data.description||'').trim(),
+          location: String(data.location||'').trim(),
+          date: data.date || todayISO(),
+          endDate: data.endDate || '',
+          time: data.time || '',
+          endTime: data.endTime || '',
+          targetScope: data.targetScope || 'battalion',
+          scope: data.targetScope || 'battalion',
+          targetBattalion: data.targetBattalion || '',
+          targetPlatoon: data.targetPlatoon || '',
+          targetTeam: data.targetTeam || '',
+          targetUserId: String(data.targetUserId||'').trim(),
+          assignedTo: String(data.targetUserId||'').trim() || null,
+          requireAck: !!data.requireAck,
+          ackBy: [],
+          status: 'active',
+          createdBy: user.name,
+          createdTime: nowTime(),
+          createdAt: new Date().toISOString(),
+          updatedBy: null,
+          updatedAt: null,
+          replacesId: isEdit ? existing.id : null
+        };
+
+        if(newItem.type==='task'){
+          if(newItem.targetScope === 'user'){
+            newItem.assignedTo = newItem.targetUserId || null;
+          }
+          newItem.completed = false;
+        }
+
+        if(isEdit){
+          state.schedule = state.schedule.map(x => x.id==existing.id ? {...x, status:'archived', archivedBy:user.name, archivedAt:new Date().toISOString()} : x);
+        }
+
+        state.schedule.unshift(newItem);
+        saveState();
+        closeModal();
+        render();
+      });
+    }
+
+    function cancelEvent(eventId){
+      const user = state.auth.user;
+      if(!isAdmin(user)) return;
+      const it = state.schedule.find(x=>x.id==eventId);
+      if(!it) return;
+      if(!confirm('לבטל את האירוע? (יישאר בארכיון)')) return;
+      it.status = 'archived';
+      it.canceledBy = user.name;
+      it.canceledAt = new Date().toISOString();
+      saveState();
+      render();
+    }
+
+    function renderAckBlock(it, isSoldierView, me){
+      const ackBy = it.ackBy || [];
+      const meAck = me ? ackBy.includes(me.id) : false;
+
+      if(isSoldierView){
+        return `<div style="margin-top:14px">${meAck ? `<span class="tag green">אישרתי שקראתי</span>` : `<button class="btn green" data-ack-read="1">סמן שקראתי</button>`}</div>`;
+      }
+
+      const adminUser = state.auth.user;
+      const relevant = state.soldiers.filter(s=>s.tzavStatus==='active' && canAdminAccessSoldier(adminUser, s) && matchTarget(it, s));
+      const rows = relevant.map(s=>{
+        const ok = ackBy.includes(s.id);
+        return `<div class="card" style="padding:10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <div class="small"><b>${escapeHtml(s.name)}</b> <span class="muted">• ${escapeHtml(s.id)}</span></div>
+          <span class="tag ${ok?'green':'red'}">${ok?'קרא':'לא קרא'}</span>
+        </div>`;
+      }).join('');
+
+      return `
+        <div style="margin-top:14px">
+          <div class="h2" style="font-size:14px">סטטוס קריאה</div>
+          <div class="small muted" style="margin-top:6px">מוצגים מי שנכלל ביעד ההיררכי של האירוע</div>
+          <div style="max-height:260px;overflow:auto;margin-top:8px;padding-right:2px">${rows || `<div class="muted small">אין חיילים ליעד</div>`}</div>
+        </div>
+      `;
+    }
+
+    function renderVersionNav(it){
+      const newer = state.schedule.find(x=>x.replacesId == it.id);
+      return `
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          ${it.replacesId ? `<button class="btn" data-open-prev="${it.replacesId}">פתח אירוע קודם #${it.replacesId}</button>`:''}
+          ${newer ? `<button class="btn" data-open-newer="${newer.id}">פתח גרסה חדשה #${newer.id}</button>`:''}
+        </div>
+      `;
+    }
+
+    function renderAdminDelta(it){
+      const prev = state.schedule.find(x=>x.id==it.replacesId);
+      if(!prev) return '';
+
+      const changes = [];
+      const prevDateRange = `${prev.date||''}${prev.endDate?` עד ${prev.endDate}`:''}`;
+      const currDateRange = `${it.date||''}${it.endDate?` עד ${it.endDate}`:''}`;
+      if(prevDateRange !== currDateRange) changes.push(['תאריך', prevDateRange||'-', currDateRange||'-']);
+
+      const prevTimeRange = `${prev.time||''}${prev.endTime?` עד ${prev.endTime}`:''}`;
+      const currTimeRange = `${it.time||''}${it.endTime?` עד ${it.endTime}`:''}`;
+      if(prevTimeRange !== currTimeRange) changes.push(['שעה', prevTimeRange||'-', currTimeRange||'-']);
+
+      if((prev.title||'') !== (it.title||'')) changes.push(['כותרת', prev.title||'-', it.title||'-']);
+      if((prev.location||'') !== (it.location||'')) changes.push(['מיקום', prev.location||'-', it.location||'-']);
+
+      const clip = (s)=> (s||'').trim().slice(0,320) + (((s||'').trim().length>320)?'…':'');
+      if((prev.description||'') !== (it.description||'')) changes.push(['תיאור', clip(prev.description)||'-', clip(it.description)||'-']);
+
+      const prevTarget = `${prev.targetScope||prev.scope||''}|${prev.targetBattalion||''}|${prev.targetPlatoon||''}|${prev.targetTeam||''}|${prev.targetUserId||prev.assignedTo||''}`;
+      const currTarget = `${it.targetScope||it.scope||''}|${it.targetBattalion||''}|${it.targetPlatoon||''}|${it.targetTeam||''}|${it.targetUserId||it.assignedTo||''}`;
+      if(prevTarget !== currTarget){
+        changes.push(['יעד/היררכיה',
+          `scope:${prev.targetScope||prev.scope||'-'} battalion:${prev.targetBattalion||'-'} platoon:${prev.targetPlatoon||'-'} team:${prev.targetTeam||'-'} user:${prev.targetUserId||prev.assignedTo||'-'}`,
+          `scope:${it.targetScope||it.scope||'-'} battalion:${it.targetBattalion||'-'} platoon:${it.targetPlatoon||'-'} team:${it.targetTeam||'-'} user:${it.targetUserId||it.assignedTo||'-'}`,
+        ]);
+      }
+
+      if(!changes.length){
+        return `<div class="banner" style="margin-top:14px"><b>מה השתנה?</b><div class="small muted" style="margin-top:6px">לא נמצאו הבדלים מהותיים.</div></div>`;
+      }
+
+      return `
+        <div class="banner" style="margin-top:14px">
+          <b>מה השתנה?</b>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px">
+            ${changes.map(([label,from,to])=>`
+              <div class="small">
+                <div style="font-weight:1000;color:var(--muted)">${escapeHtml(label)}</div>
+                <div class="muted" style="white-space:pre-wrap">לפני: ${escapeHtml(from)}</div>
+                <div style="white-space:pre-wrap">אחרי: ${escapeHtml(to)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openScheduleDetails(id){
+      const it = state.schedule.find(x=>x.id==id);
+      if(!it) return;
+
+      const user = state.auth.user;
+      const me = currentSoldierRecord();
+      const isSoldierView = user.role === 'soldier';
+
+      const when = `${it.date||''} ${it.time||''}${it.endTime?`–${it.endTime}`:''}${it.endDate?` (עד ${it.endDate})`:''}`;
+      const meta = `
+        <div class="small muted" style="margin-top:8px">
+          ${it.createdBy?`הוזן ע״י: ${escapeHtml(it.createdBy)}${it.createdTime?` • ${escapeHtml(it.createdTime)}`:''}`:''}
+          ${it.updatedBy?`<br>עודכן ע״י: ${escapeHtml(it.updatedBy)}${it.updatedAt?` • ${escapeHtml(it.updatedAt)}`:''}`:''}
+        </div>
+      `;
+
+      const newVersionBanner = it.replacesId ? `
+        <div class="banner amber" style="margin-bottom:12px">
+          <div style="font-weight:1000">עודכן אירוע</div>
+          <div class="small" style="margin-top:6px">זו גרסה חדשה שמחליפה אירוע קודם #${it.replacesId}. נא לקרוא ולאשר.</div>
+        </div>
+      ` : '';
+
+      const adminDelta = (isAdmin(user) && it.replacesId) ? renderAdminDelta(it) : '';
+      const ackBlock = it.requireAck ? renderAckBlock(it, isSoldierView, me) : '';
+      const navButtons = isAdmin(user) ? renderVersionNav(it) : '';
+
+      openModal('פרטי אירוע/משימה', `
+        ${newVersionBanner}
+        <div class="h2">${escapeHtml(it.title)}</div>
+        <div class="small muted" style="margin-top:6px">${escapeHtml(when)}${it.location?` • ${escapeHtml(it.location)}`:''}</div>
+        ${it.description?`<div style="margin-top:12px;white-space:pre-wrap">${escapeHtml(it.description)}</div>`:''}
+        ${meta}
+        ${ackBlock}
+        ${navButtons}
+        ${adminDelta}
+      `);
+
+      $$('[data-ack-read="1"]', modalBody).forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const me2 = currentSoldierRecord();
+          if(!me2) return alert('לא זוהה חייל');
+          it.ackBy ||= [];
+          if(!it.ackBy.includes(me2.id)) it.ackBy.push(me2.id);
+          saveState();
+          closeModal();
+          render();
+        });
+      });
+
+      $$('[data-open-prev]', modalBody).forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const pid = btn.getAttribute('data-open-prev');
+          closeModal();
+          openScheduleDetails(pid);
+        });
+      });
+      $$('[data-open-newer]', modalBody).forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const nid = btn.getAttribute('data-open-newer');
+          closeModal();
+          openScheduleDetails(nid);
+        });
+      });
+    }
+
+    function CompetenciesScreen(){
+      const user = state.auth.user;
+      const admin = isAdmin(user);
+      if(!admin) return `<div class="container"><div class="card" style="padding:16px">הכשירויות שלי (דמו בגרסה זו)</div></div>`;
+      const visible = state.soldiers.filter(s=>canAdminAccessSoldier(user,s));
+      return `
+        <div class="container">
+          <div class="card" style="padding:14px 16px"><div class="h2">כשירויות (דמו)</div><div class="muted small">נשלים את הטפסים בהמשך ⭐</div></div>
+          <div style="height:12px"></div>
+          ${visible.map(s=>`
+            <div class="card" style="padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+              <div><div class="title">${escapeHtml(s.name)}</div><div class="muted small">${escapeHtml(s.battalion)}/${escapeHtml(s.platoon)} • ${escapeHtml(s.id)}</div></div>
+              <span class="tag">אימון אחרון: -</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function ChatScreen(){ return `<div class="container"><div class="card" style="padding:16px">צ'אט (דמו). בפריסה לשרת נוסיף פוש/Realtime ⭐</div></div>`; }
+
+    function Form3010Screen(){
+      const me = currentSoldierRecord();
+      const days = me?.daysActive || 0;
+      const daily = 215.3;
+      const grants = days>10 ? 1500 : 0;
+      const total = (days*daily + grants).toFixed(2);
+      return `
+        <div class="container">
+          <div class="card" style="padding:16px">
+            <div class="h2">טופס 3010 וסימולטור שכר</div>
+            <div class="grid cols3" style="margin-top:12px">
+              <div class="kpi"><div class="muted small">ימי שמ"פ</div><div class="num">${days}</div></div>
+              <div class="kpi"><div class="muted small">סכום משוער</div><div class="num">₪${total}</div><div class="small muted">* כולל מענק משוער</div></div>
+              <div class="kpi" style="display:flex;align-items:center;justify-content:center">
+                <button class="btn dark" onclick="alert('דמו: הורדת PDF')">הורד PDF</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function attachHandlers(){
+      $$('[data-tab]').forEach(b=>b.addEventListener('click', ()=>setTab(b.getAttribute('data-tab'))));
+      $$('[data-tabgo]').forEach(b=>b.addEventListener('click', ()=>setTab(b.getAttribute('data-tabgo'))));
+      const lb = document.getElementById('logout-btn'); if(lb) lb.addEventListener('click', logout);
+
+      $$('[data-login]').forEach(b=>b.addEventListener('click', ()=>loginAs(b.getAttribute('data-login'))));
+
+      $$('[data-open-schedule]').forEach(b=>b.addEventListener('click', ()=>openScheduleDetails(b.getAttribute('data-open-schedule'))));
+      $$('[data-complete-task]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-complete-task');
+        state.schedule = state.schedule.map(it => (it.id==id) ? {...it, completed:true, completedBy: state.auth.user.name} : it);
+        saveState(); render();
+      }));
+
+      const addEvt = document.querySelector('[data-open-add-event]'); if(addEvt) addEvt.addEventListener('click', ()=>openAddOrEditEvent(null));
+      $$('[data-edit-event]').forEach(b=>b.addEventListener('click', ()=>openAddOrEditEvent(b.getAttribute('data-edit-event'))));
+      $$('[data-cancel-event]').forEach(b=>b.addEventListener('click', ()=>cancelEvent(b.getAttribute('data-cancel-event'))));
+
+      const addMat = document.querySelector('[data-open-add-material]'); if(addMat) addMat.addEventListener('click', openAddMaterial);
+      $$('[data-open-read-status]').forEach(b=>b.addEventListener('click', ()=>openReadStatus(b.getAttribute('data-open-read-status'))));
+      $$('[data-mark-read]').forEach(b=>b.addEventListener('click', ()=>markMaterialRead(b.getAttribute('data-mark-read'))));
+    }
+
+    function render(){
+      const u = state.auth.user;
+      if(state.auth.view !== 'app' || !u){
+        app.innerHTML = LoginScreen();
+        attachHandlers();
+        return;
+      }
+
+      const tab = state.ui?.tab || (u.role==='soldier' ? 'my_status' : 'dashboard');
+
+      let content = '';
+      if(tab === 'dashboard') content = DashboardAdmin();
+      else if(tab === 'my_status') content = MyStatusSoldier();
+      else if(tab === 'competencies') content = CompetenciesScreen();
+      else if(tab === 'study') content = StudyScreen();
+      else if(tab === 'schedule') content = ScheduleScreen();
+      else if(tab === 'admin_schedule') content = AdminScheduleScreen();
+      else if(tab === 'chat') content = ChatScreen();
+      else if(tab === '3010') content = Form3010Screen();
+      else content = `<div class="container"><div class="card" style="padding:16px">לא נמצא</div></div>`;
+
+      app.innerHTML = TopNav(u) + content;
+      attachHandlers();
+    }
+
+    render();
+  </script>
+</body>
+</html>
